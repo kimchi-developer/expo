@@ -70,9 +70,9 @@
         "scheme": "Expo Go",
         "simulator": true,
         "buildConfiguration": "Release",
-				"cache": {
-					"disabled": true
-				}
+        "cache": {
+          "disabled": true
+        }
       }
     },
     "release-client": {

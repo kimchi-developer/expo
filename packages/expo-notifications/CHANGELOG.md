@@ -8,6 +8,8 @@
 
 ### 🐛 Bug fixes
 
+- [ios] fix race condition in `setNotificationCategoryAsync` ([#39306](https://github.com/expo/expo/pull/39306) by [@vonovak](https://github.com/vonovak))
+
 ### 💡 Others
 
 ## 0.32.7 — 2025-08-31

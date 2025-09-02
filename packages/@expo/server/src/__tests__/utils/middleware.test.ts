@@ -87,6 +87,17 @@ describe(shouldRunMiddleware, () => {
         expect(shouldRunMiddleware(request, middleware)).toBe(false);
       });
     });
+
+    describe('edge cases', () => {
+      it('should handle lowercase method names', () => {
+        const request = createMockRequest('https://expo.dev/api');
+        const middleware = createMiddlewareModule({
+          methods: ['get'],
+          patterns: ['/api'],
+        });
+        expect(shouldRunMiddleware(request, middleware)).toBe(true);
+      });
+    });
   });
 
   describe('pattern matching', () => {

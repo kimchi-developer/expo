@@ -11,7 +11,8 @@ export function shouldRunMiddleware(request, middleware) {
     const pathname = url.pathname;
     // Check HTTP methods, if specified
     if (matcher.methods) {
-        if (matcher.methods.length === 0 || !matcher.methods.includes(request.method)) {
+        const methods = matcher.methods.map((method) => method.toUpperCase());
+        if (methods.length === 0 || !methods.includes(request.method)) {
             return false;
         }
     }

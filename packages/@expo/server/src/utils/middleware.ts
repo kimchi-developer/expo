@@ -71,7 +71,7 @@ function globToRegex(pattern: string): RegExp {
     return new RegExp('^/.*$');
   }
 
-  // Split pattern into segments and filter out empty first segment
+  // Remove leading `/`  and split pattern into segments
   const segments = pattern.slice(1).split('/');
 
   // Transform each segment

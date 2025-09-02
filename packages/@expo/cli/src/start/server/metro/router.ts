@@ -152,7 +152,7 @@ export function warnInvalidMiddlewareOutput() {
   hasWarnedAboutMiddlewareOutput = true;
 }
 
-export function validateMiddlewareMatcher(matcher: MiddlewareMatcher) {
+export function warnInvalidMiddlewareMatcherSettings(matcher: MiddlewareMatcher) {
   const validMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'];
 
   // Ensure methods are valid HTTP methods
@@ -181,6 +181,12 @@ export function validateMiddlewareMatcher(matcher: MiddlewareMatcher) {
           chalk.red`Middleware matcher patterns must be strings or regular expressions. Received: ${String(
             pattern
           )}`
+        );
+      }
+
+      if (typeof pattern === 'string' && !pattern.startsWith('/')) {
+        Log.error(
+          chalk.red`String patterns in middleware matcher must start with '/'. Received: ${pattern}`
         );
       }
     }

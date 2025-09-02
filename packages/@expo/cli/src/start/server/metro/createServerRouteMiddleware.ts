@@ -16,7 +16,7 @@ import { getErrorOverlayHtmlAsync, logMetroError } from './metroErrorInterface';
 import {
   warnInvalidWebOutput,
   warnInvalidMiddlewareOutput,
-  validateMiddlewareMatcher,
+  warnInvalidMiddlewareMatcherSettings,
 } from './router';
 import { CommandError } from '../../../utils/errors';
 
@@ -198,7 +198,7 @@ export function createRouteHandlerMiddleware(
           )) as unknown as MiddlewareModule;
 
           if (middlewareModule.unstable_settings?.matcher) {
-            validateMiddlewareMatcher(middlewareModule.unstable_settings?.matcher);
+            warnInvalidMiddlewareMatcherSettings(middlewareModule.unstable_settings?.matcher);
           }
 
           return middlewareModule;

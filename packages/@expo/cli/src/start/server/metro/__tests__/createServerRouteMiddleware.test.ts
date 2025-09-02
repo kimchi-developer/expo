@@ -1,6 +1,6 @@
-import { validateMiddlewareMatcher } from '../router';
+import { warnInvalidMiddlewareMatcherSettings } from '../router';
 
-describe(validateMiddlewareMatcher, () => {
+describe(warnInvalidMiddlewareMatcherSettings, () => {
   const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
   afterEach(async () => {
@@ -12,7 +12,7 @@ describe(validateMiddlewareMatcher, () => {
       const matcher = {
         methods: {},
       };
-      validateMiddlewareMatcher(matcher);
+      warnInvalidMiddlewareMatcherSettings(matcher);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining(
@@ -25,7 +25,7 @@ describe(validateMiddlewareMatcher, () => {
       const matcher = {
         methods: ['GET', 'INVALID', 'POST'],
       };
-      validateMiddlewareMatcher(matcher);
+      warnInvalidMiddlewareMatcherSettings(matcher);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Invalid middleware HTTP method: INVALID.')
@@ -38,13 +38,24 @@ describe(validateMiddlewareMatcher, () => {
       const matcher = {
         patterns: [1, null, undefined, {}, []],
       };
-      validateMiddlewareMatcher(matcher);
+      warnInvalidMiddlewareMatcherSettings(matcher);
 
       expect(consoleErrorSpy).toHaveBeenCalledTimes(5);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining(
           'Middleware matcher patterns must be strings or regular expressions.'
         )
+      );
+    });
+
+    it('logs if string pattern do not begin with /', () => {
+      const matcher = {
+        patterns: ['api'],
+      };
+      warnInvalidMiddlewareMatcherSettings(matcher);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`String patterns in middleware matcher must start with '/'`)
       );
     });
   });

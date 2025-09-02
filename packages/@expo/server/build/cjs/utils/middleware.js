@@ -20,36 +20,14 @@ function shouldRunMiddleware(request, middleware) {
     }
     // Check path patterns, if specified
     if (matcher.patterns) {
-        if (matcher.patterns.length === 0) {
+        const patterns = Array.isArray(matcher.patterns) ? matcher.patterns : [matcher.patterns];
+        if (patterns.length === 0) {
             return false;
         }
-        const patterns = Array.isArray(matcher.patterns) ? matcher.patterns : [matcher.patterns];
         return patterns.some((pattern) => matchesPattern(pathname, pattern));
     }
     // If neither methods nor patterns are specified, run middleware on all requests
     return true;
-}
-/**
- * Converts a simple glob pattern to a regular expression. Supports `*` (match any characters
- * except `/`) and `**` (match any characters including `/`).
- */
-function globToRegex(pattern) {
-    // Escape special regex characters except `*` and `**`
-    let regexPattern = pattern
-        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
-        // Replace `**` with a placeholder to avoid conflicts with single `*`
-        .replace(/\*\*/g, '___DOUBLE_STAR___')
-        // Replace single `*` with regex to match any characters except `/`
-        .replace(/\*/g, '[^/]*')
-        // Replace `**` placeholder with regex to match any characters including `/`
-        .replace(/___DOUBLE_STAR___/g, '.*');
-    // If the pattern ends with `/*`, it should also match the path without the trailing `/*`
-    // For example, `/api/*` should match both `/api` and `/api/something`
-    if (pattern.endsWith('/*')) {
-        const basePath = regexPattern.slice(0, -6); // Remove `[^/]*$`
-        regexPattern = `${basePath}(?:/[^/]*)?`;
-    }
-    return new RegExp(`^${regexPattern}$`);
 }
 /**
  * Tests if a pathname matches a given pattern. The matching order is as follows:
@@ -60,9 +38,11 @@ function globToRegex(pattern) {
  */
 function matchesPattern(pathname, pattern) {
     if (typeof pattern === 'string') {
+        // Try exact match first
         if (pattern === pathname) {
             return true;
         }
+        // Otherwise check if it's a glob pattern
         if (pattern.includes('*')) {
             return globToRegex(pattern).test(pathname);
         }
@@ -71,5 +51,57 @@ function matchesPattern(pathname, pattern) {
         return pattern.test(pathname);
     }
     return false;
+}
+/**
+ * Converts a simple glob pattern to a regular expression. Supports `*` and `**`.
+ */
+function globToRegex(pattern) {
+    // Handle `/**` matching everything
+    if (pattern === '/**') {
+        return new RegExp('^/.*$');
+    }
+    // Split pattern into segments and filter out empty first segment
+    const segments = pattern.split('/').filter((s, i) => i > 0);
+    // Transform each segment
+    const transformedSegments = segments.map((segment, index) => {
+        const isFirst = index === 0;
+        const isLast = index === segments.length - 1;
+        if (segment === '**') {
+            if (isFirst && isLast) {
+                return '.*';
+            }
+            else if (isFirst) {
+                return '.+';
+            }
+            else if (isLast) {
+                return '(?:/.*)?';
+            }
+            else {
+                return '(?:/.*)?';
+            }
+        }
+        if (segment === '*') {
+            return '/[^/]+';
+        }
+        if (segment.endsWith('**')) {
+            const prefix = segment.slice(0, -2);
+            return '/' + escapeRegex(prefix) + '[^/]*/?';
+        }
+        if (segment.includes('*')) {
+            return '/' + segment.replace(/\*/g, '[^/]*/?');
+        }
+        return '/' + escapeRegex(segment);
+    });
+    let regexString = transformedSegments.join('');
+    if (!regexString.startsWith('/')) {
+        regexString = '/' + regexString;
+    }
+    return new RegExp(`^${regexString}$`);
+}
+/**
+ * Escapes special regex characters in a string.
+ */
+function escapeRegex(str) {
+    return str.replace(/[.+^${}()|[\]\\?]/g, '\\$&');
 }
 //# sourceMappingURL=middleware.js.map

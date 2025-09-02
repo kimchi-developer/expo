@@ -148,62 +148,191 @@ describe(shouldRunMiddleware, () => {
     });
 
     describe('wildcard patterns', () => {
-      it('should match single-level wildcard /api/*', () => {
-        const request = createMockRequest('https://expo.dev/api');
-        const middleware = createMiddlewareModule({ patterns: ['/api/*'] });
-
-        expect(shouldRunMiddleware(request, middleware)).toBe(true);
+      it.each([
+        ['https://expo.dev/users/api', true],
+        ['https://expo.dev/admin/api', true],
+        ['https://expo.dev/v1/api', true],
+        ['https://expo.dev/api', false],
+        ['https://expo.dev/users/admin/api', false],
+        ['https://expo.dev/a/b/api', false],
+      ])('should match paths with a leading wildcard', (url, expected) => {
+        const middleware = createMiddlewareModule({ patterns: ['/*/api'] });
+        expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
       });
 
-      it('should not match deeper path with single wildcard', () => {
-        const request = createMockRequest('https://expo.dev/api/users/123');
-        const middleware = createMiddlewareModule({ patterns: ['/api/*'] });
-
-        expect(shouldRunMiddleware(request, middleware)).toBe(false);
+      it.each([
+        ['https://expo.dev/api/v1/users', true],
+        ['https://expo.dev/api/v2/users', true],
+        ['https://expo.dev/api/admin/users', true],
+        ['https://expo.dev/api/users', false],
+        ['https://expo.dev/api/v1/admin/users', false],
+        ['https://expo.dev/api/a/b/users', false],
+      ])('should match paths with an interior wildcard', (url, expected) => {
+        const middleware = createMiddlewareModule({ patterns: ['/api/*/users'] });
+        expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
       });
 
-      it('should not match root path when pattern is /api/*', () => {
-        const request = createMockRequest('https://expo.dev/');
+      it.each([
+        ['https://expo.dev/api/users', true],
+        ['https://expo.dev/api', false],
+        ['https://expo.dev/api/', false],
+        ['https://expo.dev/api/v1/users', false],
+        ['https://expo.dev/api/v1/admin/users', false],
+      ])('should match paths with a trailing /*', (url, expected) => {
         const middleware = createMiddlewareModule({ patterns: ['/api/*'] });
-
-        expect(shouldRunMiddleware(request, middleware)).toBe(false);
+        expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
       });
 
-      it('should match different single-level paths', () => {
-        const request = createMockRequest('https://expo.dev/admin/settings');
-        const middleware = createMiddlewareModule({ patterns: ['/admin/*'] });
-
-        expect(shouldRunMiddleware(request, middleware)).toBe(true);
+      it.each([
+        ['https://expo.dev/api', true],
+        ['https://expo.dev/api/', true],
+        ['https://expo.dev/api123', true],
+        ['https://expo.dev/apitest', true],
+        ['https://expo.dev/apis', true],
+        ['https://expo.dev/api/users', false],
+        ['https://expo.dev/api/v1/users', false],
+        ['https://expo.dev/api/v1/admin/users', false],
+      ])('should match paths with a trailing *', (url, expected) => {
+        const middleware = createMiddlewareModule({ patterns: ['/api*'] });
+        expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
       });
     });
 
     describe('deep wildcard patterns', () => {
-      it('should match all paths with deep wildcard /**', () => {
-        const request = createMockRequest('https://expo.dev/');
+      it.each([
+        ['https://expo.dev/', true],
+        ['https://expo.dev/api/users/123/profile', true],
+      ])('should match all paths with deep wildcard /**', (url, expected) => {
+        const request = createMockRequest(url);
         const middleware = createMiddlewareModule({ patterns: ['/**'] });
 
-        expect(shouldRunMiddleware(request, middleware)).toBe(true);
+        expect(shouldRunMiddleware(request, middleware)).toBe(expected);
       });
 
-      it('should match nested path with deep wildcard', () => {
-        const request = createMockRequest('https://expo.dev/api/users/123/profile');
-        const middleware = createMiddlewareModule({ patterns: ['/**'] });
-
-        expect(shouldRunMiddleware(request, middleware)).toBe(true);
+      it.each([
+        ['https://expo.dev/api', false],
+        ['https://expo.dev/api/', false],
+        ['https://expo.dev/users/api', true],
+        ['https://expo.dev/admin/api', true],
+        ['https://expo.dev/v1/api', true],
+        ['https://expo.dev/users/admin/api', true],
+        ['https://expo.dev/a/b/api', true],
+        ['https://expo.dev/a/b/c/d/api', true],
+        ['https://expo.dev/api/settings', false],
+        ['https://expo.dev/admin/api/data', false],
+        ['https://expo.dev/apis', false],
+        ['https://expo.dev/api123', false],
+        ['https://expo.dev/apitest', false],
+      ])('should match nested paths with a leading double wildcard', (url, expected) => {
+        const middleware = createMiddlewareModule({ patterns: ['/**/api'] });
+        expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
       });
 
-      it('should match paths under prefix with /api/**', () => {
-        const request = createMockRequest('https://expo.dev/api/users/123/profile/settings');
-        const middleware = createMiddlewareModule({ patterns: ['/api/**'] });
-
-        expect(shouldRunMiddleware(request, middleware)).toBe(true);
+      it.each([
+        ['https://expo.dev/api/users', true],
+        ['https://expo.dev/api/v1/users', true],
+        ['https://expo.dev/api/v1/admin/users', true],
+        ['https://expo.dev/api/a/b/c/d/users', true],
+        ['https://expo.dev/api/users/settings', false],
+        ['https://expo.dev/api/v1/users/data', false],
+      ])('should match nested paths with an interior double wildcard', (url, expected) => {
+        const middleware = createMiddlewareModule({ patterns: ['/api/**/users'] });
+        expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
       });
 
-      it('should not match paths outside prefix', () => {
-        const request = createMockRequest('https://expo.dev/admin/users');
-        const middleware = createMiddlewareModule({ patterns: ['/api/**'] });
+      it.each([
+        ['https://expo.dev/api/', true],
+        ['https://expo.dev/api/users', true],
+        ['https://expo.dev/api/v1/users', true],
+        ['https://expo.dev/api/v1/admin/users', true],
+        ['https://expo.dev/api/a/b/c/d/users', true],
+        ['https://expo.dev/api/users/settings', true],
+        ['https://expo.dev/api/v1/users/data', true],
+        ['https://expo.dev/api', true],
+        ['https://expo.dev/v1/api/users/data', false],
+      ])(
+        'should match nested paths with a trailing double wildcard with preceding /',
+        (url, expected) => {
+          const middleware = createMiddlewareModule({ patterns: ['/api/**'] });
+          expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
+        }
+      );
 
-        expect(shouldRunMiddleware(request, middleware)).toBe(false);
+      it.each([
+        ['https://expo.dev/api', true],
+        ['https://expo.dev/api/', true],
+        ['https://expo.dev/api123', true],
+        ['https://expo.dev/apitest', true],
+        ['https://expo.dev/apis', true],
+        ['https://expo.dev/api/users', false],
+        ['https://expo.dev/api/v1/users', false],
+        ['https://expo.dev/api/v1/admin/users', false],
+        ['https://expo.dev/api/a/b/c/d/users', false],
+        ['https://expo.dev/api/users/settings', false],
+        ['https://expo.dev/api/v1/users/data', false],
+      ])(
+        'should match string prefixes with a trailing double wildcard without preceding /',
+        (url, expected) => {
+          const middleware = createMiddlewareModule({ patterns: ['/api**'] });
+          expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
+        }
+      );
+    });
+
+    describe('complex wildcard patterns', () => {
+      it.each([
+        ['https://expo.dev/v1/api', true],
+        ['https://expo.dev/v1/api/users', true],
+        ['https://expo.dev/v1/api/users/123', true],
+        ['https://expo.dev/admin/api/settings/global', true],
+        ['https://expo.dev/api', false],
+        ['https://expo.dev/a/b/api', false],
+      ])('should handle a leading wildcard with a trailing double wildcard', (url, expected) => {
+        const middleware = createMiddlewareModule({ patterns: ['/*/api/**'] });
+        expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
+      });
+
+      it.each([
+        ['https://expo.dev/api/users', false],
+        ['https://expo.dev/api/data', false],
+        ['https://expo.dev/api/settings', false],
+        ['https://expo.dev/admin/api/data', true],
+        ['https://expo.dev/v1/api/users', true],
+        ['https://expo.dev/admin/v1/api/users', true],
+        ['https://expo.dev/api', false],
+        ['https://expo.dev/api/', false],
+        ['https://expo.dev/v1/api', false],
+        ['https://expo.dev/api/users/123', false],
+        ['https://expo.dev/api/v1/users', false],
+      ])(
+        'should handle a leading double wildcard with a trailing single wildcard',
+        (url, expected) => {
+          const middleware = createMiddlewareModule({ patterns: ['/**/api/*'] });
+          expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
+        }
+      );
+
+      it.each([
+        ['https://expo.dev/api/user/data', true],
+        ['https://expo.dev/api/user/data/profile', true],
+        ['https://expo.dev/api/admin/data/settings/global', true],
+        ['https://expo.dev/api/data', false],
+        ['https://expo.dev/api/user/admin/data', false],
+        ['https://expo.dev/api/user/settings', false],
+      ])('should handle complex pattern with multiple wildcards', (url, expected) => {
+        const middleware = createMiddlewareModule({ patterns: ['/api/*/data/**'] });
+        expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
+      });
+
+      it.each([
+        ['https://expo.dev/v1/api/admin/users', true],
+        ['https://expo.dev/admin/api/v2/users', true],
+        ['https://expo.dev/api/v1/users', false],
+        ['https://expo.dev/v1/api/users', false],
+        ['https://expo.dev/a/b/api/v1/users', false],
+      ])('should handle multiple single wildcards', (url, expected) => {
+        const middleware = createMiddlewareModule({ patterns: ['/*/api/*/users'] });
+        expect(shouldRunMiddleware(createMockRequest(url), middleware)).toBe(expected);
       });
     });
 

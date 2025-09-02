@@ -1,41 +1,42 @@
 import MIcons from '@expo/vector-icons/MaterialIcons';
-import { ThemeProvider, DarkTheme } from '@react-navigation/native';
+import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { Badge, Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs';
 import { useState } from 'react';
-import { Appearance, Platform } from 'react-native';
+import { Appearance, Platform, useColorScheme } from 'react-native';
 
 import { ActiveTabsContext } from '../utils/active-tabs-context';
 
 if (process.env.EXPO_OS !== 'web') {
-  Appearance.setColorScheme('dark');
+  Appearance.setColorScheme(null);
 }
 
 export default function Layout() {
   const [activeTabs, setActiveTabs] = useState<string[]>([]);
+  const scheme = useColorScheme();
   return (
-    <ThemeProvider value={DarkTheme}>
+    <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       <ActiveTabsContext.Provider value={{ activeTabs, setActiveTabs }}>
         <NativeTabs
-        // Both platforms
-        // labelStyle={{
-        //   fontSize: 16,
-        //   fontWeight: 700,
-        //   fontStyle: 'italic',
-        //   // fontFamily: 'Courier New',
-        //   color: Platform.OS === 'android' ? '#888' : undefined,
-        // }}
-        // backgroundColor={Platform.OS === 'android' ? 'black' : undefined}
-        // badgeBackgroundColor="green"
-        // tintColor="orange"
-        // iconColor={Platform.OS === 'android' ? '#888' : undefined}
-        // iOS only
-        // blurEffect="systemDefault"
-        // minimizeBehavior="onScrollDown"
-        // disableTransparentOnScrollEdge
-        // Android only
-        // labelVisibilityMode="auto"
-        // rippleColor="orange"
-        // indicatorColor="black"
+          // Both platforms
+          // labelStyle={{
+          //   fontSize: 16,
+          //   fontWeight: 700,
+          //   fontStyle: 'italic',
+          //   // fontFamily: 'Courier New',
+          //   color: Platform.OS === 'android' ? '#888' : undefined,
+          // }}
+          // backgroundColor={Platform.OS === 'android' ? 'black' : undefined}
+          // badgeBackgroundColor="green"
+          // tintColor="orange"
+          // iconColor={Platform.OS === 'android' ? '#888' : undefined}
+          // iOS only
+          blurEffect="systemChromeMaterial"
+          // minimizeBehavior="onScrollDown"
+          // disableTransparentOnScrollEdge
+          // Android only
+          // labelVisibilityMode="auto"
+          // rippleColor="orange"
+          // indicatorColor="black"
         >
           <NativeTabs.Trigger name="index">
             <Label

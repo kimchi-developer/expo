@@ -19,8 +19,8 @@ import java.io.Serializable
 class DeleteContract(
   private val appContextProvider: AppContextProvider
 ) : AppContextActivityResultContract<DeleteContractInput, Boolean> {
-  private val contentResolver: ContentResolver get() =
-    appContextProvider.appContext.reactContext?.contentResolver
+  private val contentResolver: ContentResolver
+    get() = appContextProvider.appContext.reactContext?.contentResolver
       ?: throw Exceptions.ReactContextLost()
 
   @RequiresApi(Build.VERSION_CODES.R)

@@ -19,8 +19,8 @@ import java.io.Serializable
 class WriteContract(
   private val appContextProvider: AppContextProvider
 ) : AppContextActivityResultContract<WriteContractInput, Boolean> {
-  private val contentResolver: ContentResolver get() =
-    appContextProvider.appContext.reactContext?.contentResolver
+  private val contentResolver: ContentResolver
+    get() = appContextProvider.appContext.reactContext?.contentResolver
       ?: throw Exceptions.ReactContextLost()
 
   @RequiresApi(Build.VERSION_CODES.R)

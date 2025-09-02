@@ -45,12 +45,11 @@ class AlbumModernFactory(private val context: Context, private val assetFactory:
     return Album(albumId, context)
   }
 
-  private suspend fun processAssetsLocation(
-    assets: List<Asset>,
-    relativePath: RelativePath,
-    move: Boolean
-  ) = when (move) {
-    true -> assets.map { it.move(relativePath) }
-    false -> assets.map { it.copy(relativePath) }
+  private suspend fun processAssetsLocation(assets: List<Asset>, relativePath: RelativePath, deleteOriginalAssets: Boolean) {
+    if (deleteOriginalAssets) {
+      assets.map { it.move(relativePath) }
+    } else {
+      assets.map { it.copy(relativePath) }
+    }
   }
 }

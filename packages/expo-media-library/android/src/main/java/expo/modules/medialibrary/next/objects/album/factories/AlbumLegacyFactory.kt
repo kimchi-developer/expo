@@ -25,7 +25,7 @@ class AlbumLegacyFactory(val context: Context, val assetFactory: AssetFactory) :
       val mimeTypeOfFirstAsset = firstAsset.getMimeType()
       val relativePath = RelativePath.create(mimeTypeOfFirstAsset, albumName)
       createAlbumDirectoryIfNotExists(relativePath)
-      processAssetsLocationLegacy(assets, relativePath, true)
+      processAssetsLocation(assets, relativePath, true)
       val albumId = contentResolver.queryAssetBucketId(assets[0].contentUri)
         ?: throw AlbumCouldNotBeCreated("Could not find album with filePath: ${relativePath.toFilePath()}")
       return Album(albumId.toString(), context)
@@ -49,10 +49,11 @@ class AlbumLegacyFactory(val context: Context, val assetFactory: AssetFactory) :
     return Album(albumId.toString(), context)
   }
 
-  private suspend fun processAssetsLocationLegacy(assets: List<Asset>, relativePath: RelativePath, deleteOriginalAssets: Boolean) {
-    when (deleteOriginalAssets) {
-      true -> assets.map { it.move(relativePath) }
-      false -> assets.map { it.copy(relativePath) }
+  private suspend fun processAssetsLocation(assets: List<Asset>, relativePath: RelativePath, deleteOriginalAssets: Boolean) {
+    if (deleteOriginalAssets) {
+      assets.map { it.move(relativePath) }
+    } else {
+      assets.map { it.copy(relativePath) }
     }
   }
 

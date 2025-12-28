@@ -27,6 +27,19 @@ function toPosixPath(filePath: string): string {
 }
 
 /**
+ * Check if a file URL is valid for the current platform.
+ * On Windows, file URLs must have a drive letter (e.g., file:///C:/path).
+ */
+function isValidFileUrl(fileUrl: string): boolean {
+  if (process.platform === 'win32') {
+    // Windows requires drive letter: file:///C:/... or file:///D:/...
+    return /^file:\/\/\/[a-zA-Z]:\//.test(fileUrl);
+  }
+  // Unix: file:///path is always valid
+  return true;
+}
+
+/**
  * Resolve a file:// URL to an output key.
  *
  * - Package files (node_modules): returns path after last /node_modules/
@@ -38,13 +51,15 @@ function toPosixPath(filePath: string): string {
  */
 function resolveOutputKey(fileUrl: string, projectRoot: string): string {
   const absolutePath = fileURLToPath(fileUrl);
+  // Normalize to POSIX for consistent string operations across platforms
+  const posixPath = toPosixPath(absolutePath);
 
   // Package files: use path after last /node_modules/
   // This handles pnpm's structure: node_modules/.pnpm/pkg@1.0/node_modules/pkg/...
   // lastIndexOf ensures we get "pkg/..." not ".pnpm/pkg@1.0/node_modules/pkg/..."
-  if (absolutePath.includes('/node_modules/')) {
-    const nodeModulesIndex = absolutePath.lastIndexOf('/node_modules/');
-    const packageRelativePath = absolutePath.slice(nodeModulesIndex + '/node_modules/'.length);
+  if (posixPath.includes('/node_modules/')) {
+    const nodeModulesIndex = posixPath.lastIndexOf('/node_modules/');
+    const packageRelativePath = posixPath.slice(nodeModulesIndex + '/node_modules/'.length);
     debug('Resolved %s -> %s (node_modules)', fileUrl, packageRelativePath);
     return packageRelativePath;
   }
@@ -76,10 +91,18 @@ function replaceFileUrlsInCode(code: string, projectRoot: string): string {
     const fileUrl = hashIndex >= 0 ? match.substring(0, hashIndex) : match;
     const hash = hashIndex >= 0 ? match.substring(hashIndex) : '';
 
+    // Skip invalid file URLs (e.g., file:///android_res/ on Windows lacks drive letter)
+    if (!isValidFileUrl(fileUrl)) {
+      return match;
+    }
+
     // Only transform URLs that point to files within the project
     // This avoids transforming unrelated file:// URLs (e.g., file:///android_res/)
     const absolutePath = fileURLToPath(fileUrl);
-    if (!absolutePath.startsWith(projectRoot)) {
+    // Normalize to POSIX for consistent comparison across platforms
+    const posixAbsolutePath = toPosixPath(absolutePath);
+    const posixProjectRoot = toPosixPath(projectRoot);
+    if (!posixAbsolutePath.startsWith(posixProjectRoot)) {
       return match; // Keep original, not a project file
     }
 

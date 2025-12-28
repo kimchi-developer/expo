@@ -973,11 +973,22 @@ export class MetroBundlerDevServer extends BundlerDevServer {
         JSON.stringify(
           // TODO: Add a less leaky version of this across the framework with just [key, value] (module ID, chunk).
           Object.fromEntries(
-            Array.from(ssrManifest.entries()).map(([key, value]) => [
-              // Must match babel plugin.
-              './' + toPosixPath(path.relative(this.projectRoot, path.join(serverRoot, key))),
-              [key, value],
-            ])
+            Array.from(ssrManifest.entries()).map(([key, value]) => {
+              const absolutePath = path.join(serverRoot, key);
+
+              // Must match rscOutputKeySerializerPlugin output format:
+              // - Package files (node_modules): path after last /node_modules/ (handles pnpm)
+              // - App files: ./ + relative path from project root
+              let manifestKey: string;
+              if (absolutePath.includes('/node_modules/')) {
+                const nodeModulesIndex = absolutePath.lastIndexOf('/node_modules/');
+                manifestKey = absolutePath.slice(nodeModulesIndex + '/node_modules/'.length);
+              } else {
+                manifestKey = './' + toPosixPath(path.relative(this.projectRoot, absolutePath));
+              }
+
+              return [manifestKey, [key, value]];
+            })
           )
         ),
     });

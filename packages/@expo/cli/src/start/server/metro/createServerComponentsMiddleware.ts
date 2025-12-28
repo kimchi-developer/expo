@@ -29,6 +29,41 @@ import {
 
 const debug = require('debug')('expo:rsc') as typeof console.log;
 
+/**
+ * Resolve an output key to an absolute file path.
+ *
+ * Output keys are:
+ * - Relative paths: "./components/Button.tsx" (resolved from projectRoot)
+ * - node_modules paths: "pkg/lib/index.js" (resolved via require.resolve)
+ */
+function resolveOutputKeyToPath(outputKey: string, projectRoot: string): string {
+  // Relative paths: resolve from project root
+  if (outputKey.startsWith('./') || outputKey.startsWith('../')) {
+    return path.resolve(projectRoot, outputKey);
+  }
+
+  // node_modules paths: use require.resolve to handle monorepo/pnpm structures
+  try {
+    return require.resolve(outputKey, { paths: [projectRoot] });
+  } catch {
+    // Fallback to direct path if require.resolve fails
+    return path.resolve(projectRoot, 'node_modules', outputKey);
+  }
+}
+
+/**
+ * Generate an output key from an absolute file path.
+ *
+ * For app-level files: returns a relative path from projectRoot (e.g., "./app/page.tsx")
+ *
+ * Note: For packages, the serializer uses the original import specifier from the
+ * dependency graph. Since we don't have access to that here, this function only
+ * handles app-level files which use relative paths.
+ */
+function generateOutputKeyFromPath(filePath: string, projectRoot: string): string {
+  return './' + toPosixPath(path.relative(projectRoot, filePath));
+}
+
 type SSRLoadModuleArtifactsFunc = (
   filePath: string,
   specificOptions?: Partial<ExpoMetroOptions>
@@ -203,8 +238,8 @@ export function createServerComponentsMiddleware(
         contents: wrapBundle(contents.src),
       });
 
-      // Match babel plugin.
-      const publicModuleId = './' + toPosixPath(path.relative(projectRoot, entryPoint));
+      // Match serializer's output key format for app-level files.
+      const publicModuleId = generateOutputKeyFromPath(entryPoint, projectRoot);
 
       // Import relative to `dist/server/_expo/rsc/web/router.js`
       manifest[publicModuleId] = [String(relativeName), outputName];
@@ -366,10 +401,11 @@ export function createServerComponentsMiddleware(
     );
 
     return (file: string, isServer: boolean) => {
-      const filePath = path.join(
-        projectRoot,
-        file.startsWith('file://') ? fileURLToFilePath(file) : file
-      );
+      // Handle legacy file:// URLs (should be rare after serializer normalization)
+      const outputKey = file.startsWith('file://') ? fileURLToFilePath(file) : file;
+
+      // Resolve the output key to an absolute file path
+      const filePath = resolveOutputKeyToPath(outputKey, projectRoot);
 
       if (isExporting) {
         assert(context.ssrManifest, 'SSR manifest must exist when exporting');

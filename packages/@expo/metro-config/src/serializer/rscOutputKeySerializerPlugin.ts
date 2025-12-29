@@ -4,6 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
+import { getMetroServerRoot } from '@expo/config/paths';
 import type { MixedOutput, Module, ReadOnlyGraph } from '@expo/metro/metro/DeltaBundler';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -66,21 +67,21 @@ function resolveOutputKey(fileUrl: string, projectRoot: string): string {
 
   // App files: use relative path from project root
   const relativePath = './' + toPosixPath(path.relative(projectRoot, absolutePath));
-  debug('Resolved %s -> %s (app)', fileUrl, relativePath);
+  debug('Resolved %s -> %s (app, base=%s)', fileUrl, relativePath, projectRoot);
   return relativePath;
 }
 
 /**
  * Replace file:// URLs in the code with stable output keys.
  *
- * Only replaces URLs that point to files within the project (projectRoot).
+ * Only replaces URLs that point to files within the server root (monorepo root).
  * This avoids transforming unrelated file:// URLs in test code or other contexts.
  *
  * Matches patterns like:
  * - createClientModuleProxy("file:///path/to/project/file.js")
  * - createServerReference("file:///path/to/project/file.js#exportName", ...)
  */
-function replaceFileUrlsInCode(code: string, projectRoot: string): string {
+function replaceFileUrlsInCode(code: string, projectRoot: string, serverRoot: string): string {
   // Match file:// URLs with absolute paths (file:///absolute/path)
   // Only match URLs with three slashes (Unix absolute path) to avoid matching
   // template literals like `file://${variable}` in bundled code.
@@ -96,17 +97,17 @@ function replaceFileUrlsInCode(code: string, projectRoot: string): string {
       return match;
     }
 
-    // Only transform URLs that point to files within the project
-    // This avoids transforming unrelated file:// URLs (e.g., file:///android_res/)
+    // Only transform URLs that point to files within the server root (monorepo root)
+    // This includes packages folder in monorepo setups
     const absolutePath = fileURLToPath(fileUrl);
     // Normalize to POSIX for consistent comparison across platforms
     const posixAbsolutePath = toPosixPath(absolutePath);
-    const posixProjectRoot = toPosixPath(projectRoot);
-    if (!posixAbsolutePath.startsWith(posixProjectRoot)) {
+    const posixServerRoot = toPosixPath(serverRoot);
+    if (!posixAbsolutePath.startsWith(posixServerRoot)) {
       return match; // Keep original, not a project file
     }
 
-    const outputKey = resolveOutputKey(fileUrl, projectRoot);
+    const outputKey = resolveOutputKey(fileUrl, serverRoot);
     return outputKey + hash;
   });
 }
@@ -140,6 +141,9 @@ export async function rscOutputKeySerializerPlugin(
     return [entryPoint, preModules, graph, options];
   }
 
+  // Get the server root (monorepo root) for resolving packages outside projectRoot
+  const serverRoot = getMetroServerRoot(projectRoot);
+  debug('projectRoot: %s, serverRoot: %s', projectRoot, serverRoot);
   const environment = graph.transformOptions?.customTransformOptions?.environment;
 
   // Replace file:// URLs in each module's code
@@ -147,7 +151,7 @@ export async function rscOutputKeySerializerPlugin(
     for (const output of module.output) {
       if ('code' in output.data && typeof output.data.code === 'string') {
         const originalCode = output.data.code;
-        const newCode = replaceFileUrlsInCode(originalCode, projectRoot);
+        const newCode = replaceFileUrlsInCode(originalCode, projectRoot, serverRoot);
 
         if (newCode !== originalCode) {
           debug('Replaced file:// URLs in %s (env=%s)', module.path, environment);
